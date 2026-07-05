@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FlashMind - AI Flashcards</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#080c14;--surface:#0f1520;--surface2:#161e2e;--border:#1e2a3e;
+  --accent:#38bdf8;--accent2:#7dd3fc;--text:#e8f4fd;--muted:#4a6080;
+  --green:#4ade80;--red:#f87171;--yellow:#fbbf24;--orange:#fb923c;
+}
+html,body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;height:100%;overflow:hidden;}
+body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;}
+
+.topbar{padding:11px 16px 9px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.r1{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.logo{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.tag{background:rgba(56,189,248,.13);color:var(--accent2);padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.4px;}
+.dot-wrap{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--red);}
+.dot.on{background:var(--green);}
+.conn-row{display:flex;gap:6px;}
+.url-in,.model-sel{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:10px;outline:none;flex:1;min-width:0;}
+.url-in:focus,.model-sel:focus{border-color:var(--accent);}
+.btn-xs{background:var(--accent);color:#041020;border:none;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;flex-shrink:0;}
+
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.tab{flex:1;padding:10px 4px;text-align:center;font-size:12px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+.view{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.view.active{display:flex;}
+.scroll-area{flex:1;overflow-y:auto;padding:14px 16px 100px;-webkit-overflow-scrolling:touch;}
+.scroll-area::-webkit-scrollbar{display:none;}
+
+/* GENERATE TAB */
+.gen-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;}
+.notes-ta{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:10px;font-size:12px;font-family:inherit;line-height:1.6;resize:none;outline:none;height:160px;}
+.notes-ta:focus{border-color:var(--accent);}
+.opts-row{display:flex;gap:8px;margin:10px 0;}
+.opt-sel{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:8px;font-size:11px;outline:none;}
+.gen-btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#041020;padding:12px;border-radius:10px;font-size:14px;font-weight:700;margin-top:4px;}
+.gen-btn:disabled{opacity:.4;}
+
+.deck-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);padding:6px 12px;border-radius:8px;font-size:12px;margin:4px 4px 0 0;cursor:pointer;}
+.deck-chip.active{border-color:var(--accent);background:rgba(56,189,248,.08);color:var(--accent2);}
+.deck-chip .count{background:var(--border);border-radius:10px;padding:1px 6px;font-size:10px;}
+
+/* STUDY TAB */
+.study-header{padding:12px 16px 8px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.progress-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:11px;color:var(--muted);}
+.progress-bar-bg{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width .3s;}
+
+.card-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px;perspective:1000px;}
+
+.flashcard{width:100%;max-width:360px;height:220px;cursor:pointer;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,0,.2,1);position:relative;}
+.flashcard.flipped{transform:rotateY(180deg);}
+.card-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;border:1px solid var(--border);}
+.card-front{background:var(--surface);border-color:var(--accent);}
+.card-back{background:var(--surface2);transform:rotateY(180deg);border-color:var(--green);}
+.card-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;opacity:.5;}
+.card-text{font-size:16px;font-weight:600;text-align:center;line-height:1.5;color:var(--text);}
+.tap-hint{font-size:10px;color:var(--muted);margin-top:10px;}
+
+.rating-row{display:flex;gap:10px;padding:0 16px 16px;flex-shrink:0;}
+.rate-btn{flex:1;padding:12px 4px;border-radius:12px;border:none;font-size:12px;font-weight:700;cursor:pointer;}
+.rate-btn.again{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3);}
+.rate-btn.hard{background:rgba(251,191,36,.12);color:var(--yellow);border:1px solid rgba(251,191,36,.25);}
+.rate-btn.good{background:rgba(74,222,128,.12);color:var(--green);border:1px solid rgba(74,222,128,.25);}
+.rate-btn.easy{background:rgba(56,189,248,.12);color:var(--accent2);border:1px solid rgba(56,189,248,.25);}
+.rate-btn:disabled{opacity:.3;}
+
+.no-cards{text-align:center;color:var(--muted);padding:60px 20px;font-size:12px;line-height:1.7;}
+.no-cards .big{font-size:34px;margin-bottom:10px;}
+
+/* DECKS TAB */
+.deck-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px;}
+.deck-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.deck-name{font-size:14px;font-weight:700;}
+.deck-meta{font-size:10px;color:var(--muted);}
+.deck-stats-row{display:flex;gap:6px;}
+.deck-stat{flex:1;background:var(--surface2);border-radius:6px;padding:6px;text-align:center;}
+.deck-stat-num{font-size:14px;font-weight:700;color:var(--accent2);}
+.deck-stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;}
+.deck-actions{display:flex;gap:6px;margin-top:8px;}
+.btn-study{flex:2;background:var(--accent);color:#041020;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:700;}
+.btn-del{flex:1;background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px;border-radius:8px;font-size:12px;}
+
+.empty-state{text-align:center;color:var(--muted);padding:50px 20px;font-size:12px;line-height:1.7;}
+.empty-state .big{font-size:34px;margin-bottom:10px;}
+
+.session-done{text-align:center;padding:40px 20px;}
+.session-done .big{font-size:48px;margin-bottom:10px;}
+.session-done h2{font-size:20px;font-weight:800;margin-bottom:6px;color:var(--accent2);}
+.session-done p{font-size:12px;color:var(--muted);margin-bottom:20px;}
+.done-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#041020;padding:12px 28px;border-radius:12px;font-size:14px;font-weight:700;}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:20px;font-size:12px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+.loading{text-align:center;color:var(--muted);padding:30px;font-size:12px;font-style:italic;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="r1">
+    <div class="logo"><div class="logo-icon">&#9889;</div>FlashMind<span class="tag">OFFLINE AI</span></div>
+    <div class="dot-wrap"><div class="dot" id="dot"></div><span id="stxt">Offline</span></div>
+  </div>
+  <div class="conn-row">
+    <input class="url-in" id="ollamaUrl" value="http://localhost:11434">
+    <select class="model-sel" id="modelSel">
+      <option value="llama3.2">llama3.2</option>
+      <option value="mistral">mistral</option>
+      <option value="gemma2">gemma2</option>
+      <option value="qwen2.5">qwen2.5</option>
+    </select>
+    <button class="btn-xs" onclick="checkOllama()">Connect</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('generate')">&#10024; Generate</div>
+  <div class="tab" onclick="switchTab('study')">&#127950; Study</div>
+  <div class="tab" onclick="switchTab('decks')">&#128218; Decks</div>
+</div>
+
+<!-- GENERATE -->
+<div class="view active" id="view-generate">
+  <div class="scroll-area">
+    <div class="gen-label">Paste Notes or Topic</div>
+    <textarea class="notes-ta" id="notesInput" placeholder="Paste any text, notes, or just type a topic like 'Photosynthesis' or 'World War 2' — the AI will generate flashcards automatically."></textarea>
+    <div class="opts-row">
+      <select class="opt-sel" id="cardCount">
+        <option value="5">5 cards</option>
+        <option value="10" selected>10 cards</option>
+        <option value="15">15 cards</option>
+        <option value="20">20 cards</option>
+      </select>
+      <select class="opt-sel" id="difficulty">
+        <option value="beginner">Beginner</option>
+        <option value="intermediate" selected>Intermediate</option>
+        <option value="advanced">Advanced</option>
+      </select>
+    </div>
+    <div class="gen-label" style="margin-top:12px;">Deck Name</div>
+    <input class="url-in" id="deckName" placeholder="My Deck" style="width:100%;padding:9px 12px;font-size:13px;border-radius:8px;margin-bottom:10px;">
+    <button class="gen-btn" id="genBtn" onclick="generateCards()">&#9889; Generate Flashcards</button>
+    <div id="genStatus"></div>
+  </div>
+</div>
+
+<!-- STUDY -->
+<div class="view" id="view-study">
+  <div class="study-header">
+    <div class="progress-row">
+      <span id="studyDeckName">Select a deck to study</span>
+      <span id="progressLabel">0/0</span>
+    </div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+  <div class="card-area" id="cardArea">
+    <div class="no-cards"><div class="big">&#127950;</div>Go to Decks tab and tap Study<br>to begin a session.</div>
+  </div>
+  <div class="rating-row" id="ratingRow">
+    <button class="rate-btn again" onclick="rate(1)" disabled>Again</button>
+    <button class="rate-btn hard" onclick="rate(2)" disabled>Hard</button>
+    <button class="rate-btn good" onclick="rate(3)" disabled>Good</button>
+    <button class="rate-btn easy" onclick="rate(4)" disabled>Easy</button>
+  </div>
+</div>
+
+<!-- DECKS -->
+<div class="view" id="view-decks">
+  <div class="scroll-area" id="decksArea">
+    <div class="empty-state"><div class="big">&#128218;</div>No decks yet.<br>Generate cards to create your first deck.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var decks = JSON.parse(localStorage.getItem('fm_decks')||'[]');
+// deck: {id, name, cards:[{q,a,ease,interval,due,reps}], created}
+var ollamaConnected = false;
+var studyQueue = [];
+var studyIdx = 0;
+var studyDeckId = null;
+var cardFlipped = false;
+
+window.onload = function(){ renderDecks(); checkOllama(); };
+
+async function checkOllama(){
+  try{
+    var r = await fetch(document.getElementById('ollamaUrl').value+'/api/tags');
+    if(r.ok){
+      var d=await r.json(); ollamaConnected=true;
+      document.getElementById('dot').className='dot on';
+      document.getElementById('stxt').textContent='Connected';
+      if(d.models&&d.models.length){
+        var s=document.getElementById('modelSel'); s.innerHTML='';
+        d.models.forEach(function(m){var o=document.createElement('option');o.value=m.name;o.textContent=m.name;s.appendChild(o);});
+      }
+      showToast('Ollama connected');
+    }
+  }catch(e){ollamaConnected=false;document.getElementById('dot').className='dot';document.getElementById('stxt').textContent='Offline';}
+}
+
+async function callOllama(prompt){
+  var url=document.getElementById('ollamaUrl').value;
+  var model=document.getElementById('modelSel').value;
+  var r=await fetch(url+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:model,prompt:prompt,stream:false})});
+  if(!r.ok) throw new Error('Ollama error');
+  return (await r.json()).response;
+}
+
+function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ---- GENERATE ----
+async function generateCards(){
+  var notes = document.getElementById('notesInput').value.trim();
+  if(!notes){showToast('Enter text or a topic');return;}
+  if(!ollamaConnected){showToast('Connect to Ollama first');return;}
+  var count = document.getElementById('cardCount').value;
+  var diff = document.getElementById('difficulty').value;
+  var deckName = document.getElementById('deckName').value.trim()||'My Deck';
+
+  var btn=document.getElementById('genBtn');
+  btn.disabled=true; btn.textContent='Generating...';
+  document.getElementById('genStatus').innerHTML='<div class="loading">Creating '+count+' '+diff+' flashcards...</div>';
+
+  var prompt='You are a flashcard creator. Generate exactly '+count+' flashcards at '+diff+' level from this content. '+
+    'Respond ONLY with valid JSON array, no markdown: '+
+    '[{"q":"question","a":"concise answer"}]. '+
+    'Make questions test understanding, not just memorization. Content:\n\n'+notes;
+
+  try{
+    var raw=await callOllama(prompt);
+    var t=raw.replace(/```json|```/g,'').trim();
+    var s=t.indexOf('['),e=t.lastIndexOf(']');
+    if(s<0||e<0) throw new Error('No JSON array found');
+    var cards=JSON.parse(t.substring(s,e+1));
+    if(!cards.length) throw new Error('Empty cards array');
+
+    var deck={
+      id:Date.now().toString(),
+      name:deckName,
+      cards:cards.map(function(c){
+        return {q:c.q||'',a:c.a||'',ease:2.5,interval:1,due:0,reps:0};
+      }),
+      created:new Date().toISOString()
+    };
+    decks.unshift(deck);
+    localStorage.setItem('fm_decks',JSON.stringify(decks));
+    renderDecks();
+    document.getElementById('genStatus').innerHTML='';
+    document.getElementById('notesInput').value='';
+    showToast(cards.length+' cards created in "'+deckName+'"');
+    switchTab('decks');
+  }catch(err){
+    document.getElementById('genStatus').innerHTML='<div class="loading">Error: '+esc(err.message)+'</div>';
+  }
+  btn.disabled=false; btn.textContent='\u26A1 Generate Flashcards';
+}
+
+// ---- SPACED REPETITION (SM-2 simplified) ----
+function rate(quality){
+  // quality: 1=again, 2=hard, 3=good, 4=easy
+  var deck=decks.find(function(d){return d.id===studyDeckId;});
+  if(!deck) return;
+  var card=studyQueue[studyIdx];
+  if(!card) return;
+
+  // SM-2 update
+  card.reps++;
+  if(quality>=3){
+    if(card.reps===1) card.interval=1;
+    else if(card.reps===2) card.interval=6;
+    else card.interval=Math.round(card.interval*card.ease);
+    card.ease=Math.max(1.3, card.ease+(0.1-(5-quality)*(0.08+(5-quality)*0.02)));
+  } else {
+    card.reps=0; card.interval=1;
+  }
+  card.due=Date.now()+card.interval*86400000;
+
+  // persist
+  var ci=deck.cards.findIndex(function(c){return c.q===card.q;});
+  if(ci>=0) deck.cards[ci]=card;
+  localStorage.setItem('fm_decks',JSON.stringify(decks));
+
+  studyIdx++;
+  showNextCard();
+}
+
+function startStudy(deckId){
+  studyDeckId=deckId;
+  var deck=decks.find(function(d){return d.id===deckId;});
+  if(!deck||!deck.cards.length){showToast('No cards in deck');return;}
+  // due cards first, then new cards
+  var now=Date.now();
+  studyQueue=deck.cards.filter(function(c){return c.due<=now;}).slice();
+  if(!studyQueue.length) studyQueue=deck.cards.slice(0,10); // fallback: first 10
+  studyIdx=0;
+  document.getElementById('studyDeckName').textContent=deck.name;
+  switchTab('study');
+  showNextCard();
+}
+
+function showNextCard(){
+  var area=document.getElementById('cardArea');
+  var btns=document.querySelectorAll('.rate-btn');
+  cardFlipped=false;
+
+  if(studyIdx>=studyQueue.length){
+    // session done
+    area.innerHTML='<div class="session-done"><div class="big">&#127881;</div><h2>Session Complete!</h2><p>'+studyIdx+' cards reviewed</p><button class="done-btn" onclick="switchTab(\'decks\')">Back to Decks</button></div>';
+    btns.forEach(function(b){b.disabled=true;});
+    updateProgress();
+    return;
+  }
+
+  var card=studyQueue[studyIdx];
+  updateProgress();
+
+  area.innerHTML=
+    '<div class="flashcard" id="fc" onclick="flipCard()">' +
+      '<div class="card-face card-front">' +
+        '<div class="card-label">Question</div>' +
+        '<div class="card-text">'+esc(card.q)+'</div>' +
+        '<div class="tap-hint">Tap to reveal answer</div>' +
+      '</div>' +
+      '<div class="card-face card-back">' +
+        '<div class="card-label">Answer</div>' +
+        '<div class="card-text">'+esc(card.a)+'</div>' +
+      '</div>' +
+    '</div>';
+
+  btns.forEach(function(b){b.disabled=true;});
+}
+
+function flipCard(){
+  var fc=document.getElementById('fc');
+  if(!fc) return;
+  cardFlipped=!cardFlipped;
+  fc.classList.toggle('flipped',cardFlipped);
+  var btns=document.querySelectorAll('.rate-btn');
+  btns.forEach(function(b){b.disabled=!cardFlipped;});
+}
+
+function updateProgress(){
+  var total=studyQueue.length;
+  var done=Math.min(studyIdx,total);
+  var pct=total?Math.round((done/total)*100):0;
+  document.getElementById('progressLabel').textContent=done+'/'+total;
+  document.getElementById('progressFill').style.width=pct+'%';
+}
+
+// ---- DECKS ----
+function renderDecks(){
+  var el=document.getElementById('decksArea');
+  if(!decks.length){
+    el.innerHTML='<div class="empty-state"><div class="big">&#128218;</div>No decks yet.<br>Generate cards to create your first deck.</div>';
+    return;
+  }
+  el.innerHTML=decks.map(function(d){
+    var now=Date.now();
+    var due=d.cards.filter(function(c){return c.due<=now;}).length;
+    var mastered=d.cards.filter(function(c){return c.reps>=3&&c.ease>=2.3;}).length;
+    var date=new Date(d.created).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    return '<div class="deck-card">'+
+      '<div class="deck-card-header">'+
+        '<div><div class="deck-name">'+esc(d.name)+'</div><div class="deck-meta">'+d.cards.length+' cards &bull; '+date+'</div></div>'+
+      '</div>'+
+      '<div class="deck-stats-row">'+
+        '<div class="deck-stat"><div class="deck-stat-num">'+d.cards.length+'</div><div class="deck-stat-lbl">Total</div></div>'+
+        '<div class="deck-stat"><div class="deck-stat-num" style="color:var(--yellow)">'+due+'</div><div class="deck-stat-lbl">Due</div></div>'+
+        '<div class="deck-stat"><div class="deck-stat-num" style="color:var(--green)">'+mastered+'</div><div class="deck-stat-lbl">Mastered</div></div>'+
+      '</div>'+
+      '<div class="deck-actions">'+
+        '<button class="btn-study" onclick="startStudy(\''+d.id+'\')">&#127950; Study</button>'+
+        '<button class="btn-del" onclick="deleteDeck(\''+d.id+'\')">Delete</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function deleteDeck(id){
+  if(!confirm('Delete this deck?')) return;
+  decks=decks.filter(function(d){return d.id!==id;});
+  localStorage.setItem('fm_decks',JSON.stringify(decks));
+  renderDecks(); showToast('Deck deleted');
+}
+
+function switchTab(n){
+  var ns=['generate','study','decks'];
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',ns[i]===n);});
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+  document.getElementById('view-'+n).classList.add('active');
+  if(n==='decks') renderDecks();
+}
+
+function showToast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2300);}
+</script>
+</body>
+</html>
